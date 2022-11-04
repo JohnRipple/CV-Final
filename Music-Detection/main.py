@@ -6,6 +6,25 @@ import numpy as np
 # IMAGE_NAME = 'cat-lyrics.png'
 IMAGE_NAME = 'cat-lyrics.png'
 
+
+def get_Note_Freq(note_cord, bottom_staff, top_staff):
+    # Takes the y coordinates of the note, bottom of staff, and top of staff and converts note into the frequency
+    # of the note, assuming it's not sharped or flatted
+    # https://pages.mtu.edu/~suits/notefreqs.html
+    line_dis = (bottom_staff - top_staff) / 8
+    note_pos = round((bottom_staff - note_cord) / line_dis) + 4  # gets an index based around A3
+    octave = int(note_pos / 8)  # finds the octave
+    oct_start = 220 * 2**octave
+    oct_end = 2 * oct_start
+    hz_per_note = (oct_end - oct_start) / 12
+    # Because the frequency of notes is dependent upon even split of 12 notes from oct_start to end, we only want the
+    # ones that aren't sharped or flatted
+    note_to_interval = [0, 2, 3, 5, 7, 8, 10]
+    hz = hz_per_note * note_to_interval[note_pos] + oct_start
+
+    return hz
+
+
 def main():
     music = cv.imread(IMAGE_NAME)
     music = cv.cvtColor(music, cv.COLOR_BGR2GRAY)
@@ -37,7 +56,7 @@ def main():
     # Get an image with only horizontal and vertical bars
     bars = horz + vert
     num_labels, labels, stats, centroid = cv.connectedComponentsWithStats(cv.bitwise_not(out))
-    num_labels_bar, labels_bar, stats_bar, centroid_bar = cv.connectedComponentsWithStats(bars) # Find the horizontal bar locations
+    num_labels_bar, labels_bar, stats_bar, centroid_bar = cv.connectedComponentsWithStats(bars)  # Find the horizontal bar locations
     out = cv.cvtColor(out, cv.COLOR_GRAY2BGR)
     bars = cv.cvtColor(cv.bitwise_not(bars), cv.COLOR_GRAY2BGR)
     for i in range(num_labels_bar):
@@ -60,10 +79,10 @@ def main():
                 h_note = stats[j, cv.CC_STAT_HEIGHT]
 
                 # Find if the notes are insde the music bars boudning box
-                if (x <= x_note and y <= y_note):
+                if x <= x_note and y <= y_note:
                     # Check if bottom right corner is in the outer bounding box
                     if x + w >= x_note + w_note and y + h >= y_note + h_note:
-                        #if h_note/w_note >= 2 and h_note/w_note < 5:
+                        # if h_note/w_note >= 2 and h_note/w_note < 5:
                         # Filter connected components based on height and width ratio
                         if h_note / w_note >= 0.5and h_note / w_note < 5:
                             # print(h_note/w_note)
