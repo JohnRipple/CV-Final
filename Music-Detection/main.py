@@ -3,8 +3,38 @@ import cv2 as cv
 import numpy as np
 
 
-# IMAGE_NAME = 'cat-lyrics.png'
 IMAGE_NAME = 'cat-lyrics.png'
+# IMAGE_NAME = 'god.png'
+
+# Takes in the horizontal lines picture and returns the y position of the top and bottom of each staff
+def find_staff_box(horizontal_lines):
+    staff = []
+    dist = []
+    top_bar = 0
+    num_labels, labels, stats, centroid = cv.connectedComponentsWithStats(horizontal_lines) # Get all horizontal lines connected components
+
+    # Find the distance between connected components
+    for i in range(num_labels - 1):
+        y = stats[i, cv.CC_STAT_TOP]
+        y_next = stats[i+1, cv.CC_STAT_TOP]
+        dist.append(y_next-y)
+    dist.sort()
+    bar_dist = dist[int(len(dist)/2)]   # Find median distance between connected components, most likely the distance between lines in a staff
+    last = False
+    for i in range(num_labels - 1):
+        x = stats[i, cv.CC_STAT_LEFT]
+        y = stats[i, cv.CC_STAT_TOP]
+        y_next = stats[i + 1, cv.CC_STAT_TOP]
+        x_next = stats[i + 1, cv.CC_STAT_LEFT]
+        # shift = 10
+        if not last:
+            top_bar = y
+        if (y_next - y) < bar_dist*1.2 and (x_next - x) < 3:
+            last = True
+        elif last:
+            staff.append((top_bar, y))
+            last = False
+    return staff
 
 
 def get_Note_Freq(note_cord, bottom_staff, top_staff):
@@ -35,6 +65,7 @@ def main():
     horzStruct = cv.getStructuringElement(cv.MORPH_RECT, (horzSize, 1))
     horz = cv.erode(thresh, horzStruct)
     horz = cv.dilate(horz, horzStruct)
+    staff_positions = find_staff_box(horz)
 
     # Find vertical lines
     vertSize = int(thresh.shape[0] / 30)
