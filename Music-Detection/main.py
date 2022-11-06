@@ -37,7 +37,7 @@ def find_staff_box(horizontal_lines):
     return staff
 
 
-def get_Note_Freq(note_cord, bottom_staff, top_staff):
+def get_Note_Freq(note_cord, top_staff, bottom_staff):
     # Takes the y coordinates of the note, bottom of staff, and top of staff and converts note into the frequency
     # of the note, assuming it's not sharped or flatted
     # https://pages.mtu.edu/~suits/notefreqs.html
@@ -50,7 +50,7 @@ def get_Note_Freq(note_cord, bottom_staff, top_staff):
     # Because the frequency of notes is dependent upon even split of 12 notes from oct_start to end, we only want the
     # ones that aren't sharped or flatted
     note_to_interval = [0, 2, 3, 5, 7, 8, 10]
-    hz = hz_per_note * note_to_interval[note_pos] + oct_start
+    hz = hz_per_note * note_to_interval[note_pos % 8] + oct_start
 
     return hz
 
@@ -118,7 +118,12 @@ def main():
                         if h_note / w_note >= 0.5and h_note / w_note < 5:
                             # print(h_note/w_note)
                             cv.imshow('Individual Notes', out[y_note:y_note + h_note, x_note:x_note + w_note])
+                            cv.putText(out_display, str(j), (x_note, y_note-10), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
                             cv.rectangle(out_display, (x_note, y_note), (x_note + w_note, y_note + h_note), (0, 0, 255), 1)
+                            for staff in staff_positions:
+                                if staff[0] > y and staff[1] < y + h:
+                                    freq = get_Note_Freq(int(y_note + h_note/2), staff[0], staff[1])
+                                    print(freq)
                             cv.waitKey(30)
 
     cv.imshow("Threshold", out_display)
