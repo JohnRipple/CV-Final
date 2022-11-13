@@ -7,6 +7,7 @@ import winsound
 IMAGE_NAME = 'cat-lyrics.png'
 # IMAGE_NAME = 'god.png'
 
+
 # Takes in the horizontal lines picture and returns the y position of the top and bottom of each staff
 def find_staff_box(horizontal_lines):
     staff = []
@@ -51,9 +52,10 @@ def get_Note_Freq(note_cord, top_staff, bottom_staff):
     # Because the frequency of notes is dependent upon even split of 12 notes from oct_start to end, we only want the
     # ones that aren't sharped or flatted
     note_to_interval = [0, 2, 3, 5, 7, 8, 10]
-    hz = hz_per_note * note_to_interval[note_pos % 8] + oct_start
+    hz = hz_per_note * note_to_interval[note_pos % 8] + oct_start   # getting an index out of range error here
 
     return hz
+
 
 def play_song(frequencies):
     # Takes an in order list of frequencies and plays the song
@@ -61,6 +63,7 @@ def play_song(frequencies):
         #the note duration in ms 
         sec = 1000
         winsound.Beep(freq, sec)
+
 
 def main():
     music = cv.imread(IMAGE_NAME)
