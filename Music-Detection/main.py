@@ -1,6 +1,7 @@
 
 import cv2 as cv
 import numpy as np
+import winsound
 
 
 IMAGE_NAME = 'cat-lyrics.png'
@@ -54,6 +55,12 @@ def get_Note_Freq(note_cord, top_staff, bottom_staff):
 
     return hz
 
+def play_song(frequencies):
+    # Takes an in order list of frequencies and plays the song
+    for freq in frequencies:
+        #the note duration in ms 
+        sec = 1000
+        winsound.Beep(freq, sec)
 
 def main():
     music = cv.imread(IMAGE_NAME)
