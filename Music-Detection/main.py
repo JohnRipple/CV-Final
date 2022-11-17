@@ -3,8 +3,8 @@ import cv2 as cv
 import numpy as np
 
 
-# IMAGE_NAME = 'cat-lyrics.png'
-IMAGE_NAME = 'god.png'
+IMAGE_NAME = 'cat-lyrics.png'
+# IMAGE_NAME = 'god.png'
 
 # Takes in the horizontal lines picture and returns the y position of the top and bottom of each staff
 def find_staff_box(horizontal_lines):
@@ -113,8 +113,8 @@ def main():
                 w_note = stats[j, cv.CC_STAT_WIDTH]
                 h_note = stats[j, cv.CC_STAT_HEIGHT]
 
-                # Find if the notes are insde the music bars boudning box
-                if x <= x_note and y <= y_note:
+                # Find if the notes are inside the music bars bounding box
+                if x <= x_note and y <= y_note and x_note >= (x + w/17):
                     # Check if bottom right corner is in the outer bounding box
                     if x + w >= x_note + w_note and y + h >= y_note + h_note:
                         # if h_note/w_note >= 2 and h_note/w_note < 5:
@@ -122,6 +122,7 @@ def main():
                         if h_note / w_note >= 0.5and h_note / w_note < 5:
                             # print(h_note/w_note)
                             cv.imshow('Individual Notes', out[y_note:y_note + h_note, x_note:x_note + w_note])
+                            cv.rectangle(out_display, (x, y), (int(x + w/16.5), y + h), (255, 0, 255), 1)
                             cv.putText(out_display, str(j), (x_note, y_note-10), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
                             cv.rectangle(out_display, (x_note, y_note), (x_note + w_note, y_note + h_note), (0, 0, 255), 1)
                             for staff in staff_positions:
