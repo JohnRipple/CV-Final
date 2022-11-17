@@ -3,8 +3,8 @@ import cv2 as cv
 import numpy as np
 
 
-IMAGE_NAME = 'cat-lyrics.png'
-# IMAGE_NAME = 'god.png'
+# IMAGE_NAME = 'cat-lyrics.png'
+IMAGE_NAME = 'god.png'
 
 # Takes in the horizontal lines picture and returns the y position of the top and bottom of each staff
 def find_staff_box(horizontal_lines):
@@ -41,19 +41,20 @@ def get_Note_Freq(note_cord, top_staff, bottom_staff):
     # Takes the y coordinates of the note, bottom of staff, and top of staff and converts note into the frequency
     # of the note, assuming it's not sharped or flatted
     # https://pages.mtu.edu/~suits/notefreqs.html
-    line_dis = (bottom_staff - top_staff) / 8
+    line_dis = (bottom_staff - top_staff) / 7
     note_pos = round((bottom_staff - note_cord) / line_dis) + 4  # gets an index based around A3
-    octave = int(note_pos / 8)  # finds the octave
+    octave = int(note_pos / 7)  # finds the octave
     oct_start = 220 * 2**octave
     oct_end = 2 * oct_start
     hz_per_note = (oct_end - oct_start) / 12
     # Because the frequency of notes is dependent upon even split of 12 notes from oct_start to end, we only want the
     # ones that aren't sharped or flatted
     note_to_interval = [0, 2, 3, 5, 7, 8, 10]
-    index = note_pos % 8     # converts to proper positive integer
+    index = note_pos % 7     # converts to proper positive integer
     if index < 0:
-        index = (index + 8) % 8
-    hz = hz_per_note * note_to_interval[index] + oct_start
+        index = (index + 7) % 7
+    print(index)
+    hz = hz_per_note * (note_to_interval[index] - 1) + oct_start
 
     return hz
 
@@ -126,7 +127,7 @@ def main():
                             for staff in staff_positions:
                                 if staff[0] > y and staff[1] < y + h:
                                     freq = get_Note_Freq(int(y_note + h_note/2), staff[0], staff[1])
-                                    print(freq)
+                                    print("Note:", j, "\t Frequency:", freq)
                             cv.waitKey(30)
 
     cv.imshow("Threshold", out_display)
