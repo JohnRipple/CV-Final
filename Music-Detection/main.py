@@ -1,6 +1,7 @@
 
 import cv2 as cv
 import numpy as np
+import winsound
 
 
 IMAGE_NAME = 'cat-lyrics.png'
@@ -36,6 +37,13 @@ def find_staff_box(horizontal_lines):
             last = False
     return staff
 
+
+def play_song(frequencies):
+    # Takes an in order list of frequencies and plays the song
+    for freq in frequencies:
+        #the note duration in ms
+        sec = 1000
+        winsound.Beep(freq, sec)
 
 def get_Note_Freq(note_cord, top_staff, bottom_staff):
     # Takes the y coordinates of the note, bottom of staff, and top of staff and converts note into the frequency
