@@ -51,7 +51,7 @@ def get_Note_Freq(note_cord, top_staff, bottom_staff):
     # Because the frequency of notes is dependent upon even split of 12 notes from oct_start to end, we only want the
     # ones that aren't sharped or flatted
     note_to_interval = [0, 2, 3, 5, 7, 8, 10]
-    hz = hz_per_note * note_to_interval[note_pos % 8] + oct_start
+    hz = hz_per_note * note_to_interval[note_pos % 7] + oct_start
 
     return hz
 
