@@ -38,34 +38,29 @@ def find_staff_box(horizontal_lines):
     return staff
 
 
-def play_song(frequencies):
-    # Takes an in order list of frequencies and plays the song
-    for freq in frequencies:
-        #the note duration in ms
-        sec = 1000
-        winsound.Beep(freq, sec)
-
 def get_Note_Freq(note_cord, top_staff, bottom_staff):
     # Takes the y coordinates of the note, bottom of staff, and top of staff and converts note into the frequency
     # of the note, assuming it's not sharped or flatted
     # https://pages.mtu.edu/~suits/notefreqs.html
-    line_dis = (bottom_staff - top_staff) / 7
+    line_dis = (bottom_staff - top_staff) / 8
     note_pos = round((bottom_staff - note_cord) / line_dis) + 4  # gets an index based around A3
-    octave = int(note_pos / 7)  # finds the octave
+    octave = int(note_pos / 8)  # finds the octave
     oct_start = 220 * 2**octave
     oct_end = 2 * oct_start
     hz_per_note = (oct_end - oct_start) / 12
     # Because the frequency of notes is dependent upon even split of 12 notes from oct_start to end, we only want the
     # ones that aren't sharped or flatted
     note_to_interval = [0, 2, 3, 5, 7, 8, 10]
-    index = note_pos % 7     # converts to proper positive integer
-    if index < 0:
-        index = (index + 7) % 7
-    print(index)
-    hz = hz_per_note * (note_to_interval[index] - 1) + oct_start
+    hz = hz_per_note * note_to_interval[note_pos % 8] + oct_start
 
     return hz
 
+def play_song(frequencies):
+    # Takes an in order list of frequencies and plays the song
+    for freq in frequencies:
+        #the note duration in ms
+        sec = 1000
+        winsound.Beep(freq, sec)
 
 def main():
     music = cv.imread(IMAGE_NAME)
@@ -121,8 +116,8 @@ def main():
                 w_note = stats[j, cv.CC_STAT_WIDTH]
                 h_note = stats[j, cv.CC_STAT_HEIGHT]
 
-                # Find if the notes are inside the music bars bounding box
-                if x <= x_note and y <= y_note and x_note >= (x + w/17):
+                # Find if the notes are insde the music bars boudning box
+                if x <= x_note and y <= y_note:
                     # Check if bottom right corner is in the outer bounding box
                     if x + w >= x_note + w_note and y + h >= y_note + h_note:
                         # if h_note/w_note >= 2 and h_note/w_note < 5:
@@ -130,13 +125,12 @@ def main():
                         if h_note / w_note >= 0.5and h_note / w_note < 5:
                             # print(h_note/w_note)
                             cv.imshow('Individual Notes', out[y_note:y_note + h_note, x_note:x_note + w_note])
-                            cv.rectangle(out_display, (x, y), (int(x + w/16.5), y + h), (255, 0, 255), 1)
                             cv.putText(out_display, str(j), (x_note, y_note-10), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
                             cv.rectangle(out_display, (x_note, y_note), (x_note + w_note, y_note + h_note), (0, 0, 255), 1)
                             for staff in staff_positions:
                                 if staff[0] > y and staff[1] < y + h:
                                     freq = get_Note_Freq(int(y_note + h_note/2), staff[0], staff[1])
-                                    print("Note:", j, "\t Frequency:", freq)
+                                    print(freq)
                             cv.waitKey(30)
 
     cv.imshow("Threshold", out_display)
