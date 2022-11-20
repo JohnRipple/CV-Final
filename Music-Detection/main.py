@@ -1,4 +1,4 @@
-
+import cv2
 import cv2 as cv
 import numpy as np
 import winsound
@@ -6,6 +6,10 @@ import winsound
 
 IMAGE_NAME = 'cat-lyrics.png'
 # IMAGE_NAME = 'god.png'
+
+#this reshapes the output image of sheetmusic
+cv2.namedWindow("Threshold", cv2.WINDOW_NORMAL)
+cv2.resizeWindow("Threshold", 400,500)
 
 # Takes in the horizontal lines picture and returns the y position of the top and bottom of each staff
 def find_staff_box(horizontal_lines):
@@ -55,12 +59,65 @@ def get_Note_Freq(note_cord, top_staff, bottom_staff):
 
     return hz
 
+def organize(staff_positions, notes):
+    # notes is a python list of all notes of format [x pos, y pos, freq]
+    # staff positions is a list of the staff positions
+    #
+    # the function returns multidimensional list of freq for each note organized by staff
+    # e.g freq[0] returns all the notes in the first staff
+
+    #list for the note freq
+    frequencies = []
+    # list of notes organized by staff
+    # format: list[i][(x of note, y of note, frequency of note)]
+    # i is the staff
+    organize_notes = []
+    #keep track of the place in the organize_notes list
+    place = 0
+
+    for staff in staff_positions:
+        organize_notes.append([])
+
+        #top and bottom of staff positions
+        top = staff[0] + 10
+        bottom = staff[1] + 10
+
+        for note in notes:
+            #note coordinate
+            x_note = note[0]
+            y_note = note[1]
+            #note freq
+            freq = note[2]
+
+            #see if note is in the current staff
+            if top <= y_note <= bottom:
+                # add note to current staff
+                organize_notes[place].append([x_note,y_note,freq])
+
+        place = place + 1
+
+    #all the notes placed in the propper staff, now organize each staff
+    for staff in organize_notes:
+        temp_staff = staff
+        staff = sorted(temp_staff, key=lambda x: x[0])
+        print(staff)
+        for note in staff:
+            frequencies.append(note[2])
+
+
+    #return the list of frequencies
+    return frequencies
+
+
+
 def play_song(frequencies):
     # Takes an in order list of frequencies and plays the song
     for freq in frequencies:
         #the note duration in ms
-        sec = 1000
-        winsound.Beep(freq, sec)
+        sec = 2000
+        print(freq)
+        winsound.Beep(int(freq), sec)
+
 
 def main():
     music = cv.imread(IMAGE_NAME)
@@ -73,6 +130,9 @@ def main():
     horz = cv.erode(thresh, horzStruct)
     horz = cv.dilate(horz, horzStruct)
     staff_positions = find_staff_box(horz)
+
+    # list to store all note coordinates
+    notes = []
 
     # Find vertical lines
     vertSize = int(thresh.shape[0] / 30)
@@ -116,26 +176,33 @@ def main():
                 w_note = stats[j, cv.CC_STAT_WIDTH]
                 h_note = stats[j, cv.CC_STAT_HEIGHT]
 
-                # Find if the notes are insde the music bars boudning box
+                # Find if the notes are inside the music bars bounding box
                 if x <= x_note and y <= y_note:
                     # Check if bottom right corner is in the outer bounding box
                     if x + w >= x_note + w_note and y + h >= y_note + h_note:
                         # if h_note/w_note >= 2 and h_note/w_note < 5:
                         # Filter connected components based on height and width ratio
-                        if h_note / w_note >= 0.5and h_note / w_note < 5:
+                        if h_note / w_note >= 0.5 and h_note / w_note < 5:
                             # print(h_note/w_note)
                             cv.imshow('Individual Notes', out[y_note:y_note + h_note, x_note:x_note + w_note])
-                            cv.putText(out_display, str(j), (x_note, y_note-10), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
+
                             cv.rectangle(out_display, (x_note, y_note), (x_note + w_note, y_note + h_note), (0, 0, 255), 1)
+
                             for staff in staff_positions:
                                 if staff[0] > y and staff[1] < y + h:
                                     freq = get_Note_Freq(int(y_note + h_note/2), staff[0], staff[1])
-                                    print(freq)
+                                    cv.putText(out_display, str(int(freq)), (x_note, y_note - 10), cv.FONT_HERSHEY_PLAIN, 1,
+                                               (0, 0, 255), 1)
+                                    notes.append([x_note, y_note, freq])
+                                    #print(freq)
                             cv.waitKey(30)
 
     cv.imshow("Threshold", out_display)
     cv.waitKey(0)
 
+    frequencies = organize(staff_positions,notes)
+    play_song(frequencies)
+    print(len(notes))
 
 if __name__ == '__main__':
     main()
