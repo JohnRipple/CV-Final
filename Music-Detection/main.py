@@ -119,6 +119,38 @@ def play_song(frequencies):
         winsound.Beep(int(freq), sec)
 
 
+def identify_orb(notes):
+    # notes is ([x_note, y_note, freq])
+    # takes identified frequencies and determines which ones are valid
+    # func is identifying some things as notes that are not notes like the 4,4
+    detector = cv2.ORB_create(nfeatures=300,  # default = 500
+                              nlevels=8,  # default = 8
+                              firstLevel=0,  # default = 0
+                              patchSize=31,  # default = 31
+                              edgeThreshold=31)  # default = 31
+    matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+    staff_img = cv2.imread("staff_note.png")
+    cat_img = cv2.imread("cat-lyrics.png")
+    full_note = cv2.imread("full_note.png")
+    # half_note =
+    # for note in notes:
+    #     x_pos = note[0]
+    #     y_pos = note[1]
+    #     full_note = cat_img[x_pos-5:x_pos+5, y_pos-5:y_pos+5]
+    #     cv2.imshow("full note", full_note)
+    #     cv2.waitKey(0)
+    gray_full = cv.cvtColor(full_note, cv.COLOR_BGR2GRAY)
+    gray_cat = cv.cvtColor(cat_img, cv.COLOR_BGR2GRAY)
+    kp_train, desc_train = detector.detectAndCompute(gray_cat, mask=None)
+    kp_query, desc_query = detector.detectAndCompute(gray_full, mask=None)
+    matches = matcher.match(desc_query, desc_train)
+    final_img = cv2.drawMatches(full_note, kp_query,
+                                cat_img, kp_train, matches[:20], None)
+    # Show the final image
+    cv2.imshow("Matches", final_img)
+    cv2.waitKey(0)
+
+
 def main():
     music = cv.imread(IMAGE_NAME)
     music = cv.cvtColor(music, cv.COLOR_BGR2GRAY)
@@ -145,11 +177,15 @@ def main():
     out = cv.bitwise_not(out)
     out = cv.blur(out, (2,3))
     out_display = cv.cvtColor(out, cv.COLOR_GRAY2BGR)   # Copy the image so it isn't affected by dilation/erosion
-
+    cv2.imwrite("cat_no_lines.png", out_display)
     # Get rid of small noise
     kernel = np.ones((int(out.shape[0] / 200), int(out.shape[0] / 200)))
     out = cv.dilate(out, kernel)
     out = cv.erode(out, kernel)
+
+    # out_display = cv.cvtColor(out, cv.COLOR_GRAY2BGR)  # Copy the image so it isn't affected by dilation/erosion
+    # cv.imshow("testing", out_display)
+    # cv.waitKey(0)
 
     # Get an image with only horizontal and vertical bars
     bars = horz + vert
@@ -201,6 +237,7 @@ def main():
     cv.waitKey(0)
 
     frequencies = organize(staff_positions,notes)
+    identify_orb(notes)
     play_song(frequencies)
     print(len(notes))
 
