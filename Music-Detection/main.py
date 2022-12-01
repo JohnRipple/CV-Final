@@ -17,20 +17,21 @@ cv2.resizeWindow("Threshold", 400,500)
 
 
 class Note:
-    def __init__(self, x, y, w, h, frequency, length=1):
-        self.x = x
-        self.y = y
-        self.w = w
-        self.h = h
-        self.frequency = frequency
-        self.length = length
+    # Holds all the information about a note including
+    def __init__(self, x, y, w, h, frequency, length=1.0):
+        self.x = x  # x coordinate (top left)
+        self.y = y  # y coordinate  (top left)
+        self.w = w  # note width
+        self.h = h  # note height
+        self.frequency = frequency  # note frequency
+        self.length = length    # note length in seconds
 
     def __str__(self):
         return f"X: {self.x} Y: {self.y} Frequency: {self.frequency}"
 
 
-# Takes in the horizontal lines picture and returns the y position of the top and bottom of each staff
 def find_staff_box(horizontal_lines):
+    # Takes in the horizontal lines picture and returns the y position of the top and bottom of each staff
     staff = []
     dist = []
     top_bar = 0
@@ -132,16 +133,17 @@ def organize(staff_positions, notes):
 def play_song(frequencies):
     # Takes an in order list of frequencies and plays the song
     sample_rate = 44100
-    p = pyaudio.PyAudio()
+    p = pyaudio.PyAudio()   # Creates audio object
+    # creates the audio stream
     stream = p.open(format=p.get_format_from_width(1),  # 8bit
                     channels=1,  # mono
                     rate=sample_rate,
                     output=True)
     for freq in frequencies:
-        #the note duration in ms
+        #the note duration in s
         sec = 0.5
         print(freq.frequency)
-
+        # Plays the frequency using a sine wave
         playAudio.sine_tone(
             stream,
             frequency=int(freq.frequency),  # Hz, waves per second A4
@@ -149,22 +151,27 @@ def play_song(frequencies):
             volume=0.5,  # 0..1 how loud it is
             sample_rate=sample_rate # number of samples per second
         )
+    # Closes the steam and terminates the audio object
     stream.stop_stream()
     stream.close()
     p.terminate()
-        #winsound.Beep(int(freq), sec)
 
 def merge_notes(notes):
-    # notes[n] = [x_note, y_note, freq, w_note, h_note]
+    # Takes array of Notes class
+    # Checks if there is an object right next to a note and merges them
+    # Merges dots and notes and creates a dotted half note.
+
     popping_list = []
     for i in range(len(notes) - 1):
-        if notes[i + 1].x > (notes[i].x + notes[i].w) and notes[i + 1].x < (notes[i].x + 2 * notes[i].w):
-            if notes[i + 1].y < (notes[i].y + 0.5 * notes[i].h) and notes[i + 1].y > (notes[i].y - 0.5 * notes[i].h):
+        # Check if the next possible note is within a note length of the current note and close to the y position
+        if (notes[i].x + notes[i].w) < notes[i + 1].x < (notes[i].x + 2 * notes[i].w):
+            if (notes[i].y + 0.5 * notes[i].h) > notes[i + 1].y > (notes[i].y - 0.5 * notes[i].h):
                 notes[i].w = notes[i + 1].w + notes[i+1].x - notes[i].x
                 popping_list.append(i + 1)
                 i += 1
     for i in sorted(popping_list, reverse=True):
-       notes.pop(i)
+        notes.pop(i)
+
     return notes
 
 
@@ -211,6 +218,7 @@ def identify_orb(notes):
         cv2.imshow("Matches of half note", final_img)
         cv2.waitKey(0)
 
+
 def main():
     music = cv.imread(IMAGE_NAME)
     music = cv.cvtColor(music, cv.COLOR_BGR2GRAY)
@@ -245,7 +253,6 @@ def main():
 
     # Get an image with only horizontal and vertical bars
     bars = horz + vert
-    # horz2 = cv.cvtColor(cv.bitwise_not(horz), cv.COLOR_GRAY2BGR)
     num_labels, labels, stats, centroid = cv.connectedComponentsWithStats(cv.bitwise_not(out))
     num_labels_bar, labels_bar, stats_bar, centroid_bar = cv.connectedComponentsWithStats(bars)  # Find the horizontal bar locations
     out = cv.cvtColor(out, cv.COLOR_GRAY2BGR)
@@ -274,35 +281,22 @@ def main():
                 if x <= x_note and y <= y_note:
                     # Check if bottom right corner is in the outer bounding box
                     if x + w >= x_note + w_note and y + h >= y_note + h_note:
-                        # if h_note/w_note >= 2 and h_note/w_note < 5:
                         # Filter connected components based on height and width ratio
-                        if h_note / w_note >= 0.5 and h_note / w_note < 5:
+                        if 0.5 <= h_note / w_note < 5:
                             if x_note + w_note > x + w * 0.05:
                                 if k == 0 and x_note + w_note < x + w * 0.1:
                                     cv.rectangle(out_display, (x, y), (int(x + w * 0.1), y + h), (0, 255, 0), 1)
                                     k = 1
                                 else:
-                                    # print(h_note/w_note)
                                     cv.imshow('Individual Notes', out[y_note:y_note + h_note, x_note:x_note + w_note])
-
-                                    # cv.rectangle(out_display, (x_note, y_note), (x_note + w_note, y_note + h_note), (0, 0, 255), 1)
-
                                     for staff in staff_positions:
                                         if staff[0] > y and staff[1] < y + h:
                                             freq = get_Note_Freq(int(y_note + h_note/2), staff[0], staff[1])
-                                            # cv.putText(out_display, str(int(freq)), (x_note, y_note - 10), cv.FONT_HERSHEY_PLAIN, 1,(0, 0, 255), 1)
 
-                                            #notes.append([x_note, y_note, freq, w_note, h_note])
                                             notes.append(Note(x_note, y_note, w_note, h_note, freq))
-                                            # cv.rectangle(horz2, (x, staff[0]), (x + w, staff[1]),(0, 0, 255), 1)
-                                            #print(freq)
                             else:
                                 cv.rectangle(out_display, (x, y), (int(x + w * 0.05), y + h), (255, 0, 255), 1)
                             cv.waitKey(30)
-
-
-    # cv.imwrite("median_horz.png", horz2)
-
 
     frequencies = organize(staff_positions, notes)
     frequencies = merge_notes(frequencies)
