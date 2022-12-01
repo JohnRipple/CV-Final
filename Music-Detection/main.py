@@ -1,15 +1,33 @@
 import cv2
 import cv2 as cv
 import numpy as np
-import winsound
-
+import pyaudio
+import playAudio
+from pysinewave import SineWave
+import time
 
 IMAGE_NAME = 'cat-lyrics.png'
 # IMAGE_NAME = 'god.png'
+# IMAGE_NAME =  'Test.png'
+# IMAGE_NAME = 'jingle.png'
 
 #this reshapes the output image of sheetmusic
 cv2.namedWindow("Threshold", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("Threshold", 400,500)
+
+
+class Note:
+    def __init__(self, x, y, w, h, frequency, length=1):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.frequency = frequency
+        self.length = length
+
+    def __str__(self):
+        return f"X: {self.x} Y: {self.y} Frequency: {self.frequency}"
+
 
 # Takes in the horizontal lines picture and returns the y position of the top and bottom of each staff
 def find_staff_box(horizontal_lines):
@@ -48,7 +66,7 @@ def get_Note_Freq(note_cord, top_staff, bottom_staff):
     # https://pages.mtu.edu/~suits/notefreqs.html
     line_dis = (bottom_staff - top_staff) / 8
     note_pos = round((bottom_staff - note_cord) / line_dis) + 4  # gets an index based around A3
-    octave = int(note_pos / 8)  # finds the octave
+    octave = int(note_pos / 7)  # finds the octave
     oct_start = 220 * 2**octave
     oct_end = 2 * oct_start
     hz_per_note = (oct_end - oct_start) / 12
@@ -84,26 +102,27 @@ def organize(staff_positions, notes):
 
         for note in notes:
             #note coordinate
-            x_note = note[0]
-            y_note = note[1]
+            x_note = note.x
+            y_note = note.y
             #note freq
-            freq = note[2]
+            freq = note.frequency
 
             #see if note is in the current staff
             if top <= y_note <= bottom:
                 # add note to current staff
-                organize_notes[place].append([x_note,y_note,freq])
+                # organize_notes[place].append([x_note,y_note,freq])
+                organize_notes[place].append(note)
 
         place = place + 1
 
-    #all the notes placed in the propper staff, now organize each staff
+    #all the notes placed in the proper staff, now organize each staff
     for staff in organize_notes:
         temp_staff = staff
-        staff = sorted(temp_staff, key=lambda x: x[0])
+        staff = sorted(temp_staff, key=lambda x: x.x)
         print(staff)
         for note in staff:
-            frequencies.append(note[2])
-
+            # frequencies.append(note[2])
+            frequencies.append(note)
 
     #return the list of frequencies
     return frequencies
@@ -112,11 +131,41 @@ def organize(staff_positions, notes):
 
 def play_song(frequencies):
     # Takes an in order list of frequencies and plays the song
+    sample_rate = 44100
+    p = pyaudio.PyAudio()
+    stream = p.open(format=p.get_format_from_width(1),  # 8bit
+                    channels=1,  # mono
+                    rate=sample_rate,
+                    output=True)
     for freq in frequencies:
         #the note duration in ms
-        sec = 2000
-        print(freq)
-        winsound.Beep(int(freq), sec)
+        sec = 0.5
+        print(freq.frequency)
+
+        playAudio.sine_tone(
+            stream,
+            frequency=int(freq.frequency),  # Hz, waves per second A4
+            duration=sec,  # seconds to play sound
+            volume=0.5,  # 0..1 how loud it is
+            sample_rate=sample_rate # number of samples per second
+        )
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
+        #winsound.Beep(int(freq), sec)
+
+def merge_notes(notes):
+    # notes[n] = [x_note, y_note, freq, w_note, h_note]
+    popping_list = []
+    for i in range(len(notes) - 1):
+        if notes[i + 1].x > (notes[i].x + notes[i].w) and notes[i + 1].x < (notes[i].x + 2 * notes[i].w):
+            if notes[i + 1].y < (notes[i].y + 0.5 * notes[i].h) and notes[i + 1].y > (notes[i].y - 0.5 * notes[i].h):
+                notes[i].w = notes[i + 1].w + notes[i+1].x - notes[i].x
+                popping_list.append(i + 1)
+                i += 1
+    for i in sorted(popping_list, reverse=True):
+       notes.pop(i)
+    return notes
 
 
 def identify_orb(notes):
@@ -129,16 +178,16 @@ def identify_orb(notes):
                               patchSize=31,  # default = 31
                               edgeThreshold=31)  # default = 31
     matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
-    cat_img = cv2.imread("cat_no_lines.png")
+    cat_img = cv2.imread("cat-lyrics.png")
     full_note = cv2.imread("full_note.png")
     half_note = cv2.imread("half_note.png")
     gray_full = cv.cvtColor(full_note, cv.COLOR_BGR2GRAY)
     # gray_cat = cv.cvtColor(cat_img, cv.COLOR_BGR2GRAY)
     gray_half = cv.cvtColor(half_note, cv.COLOR_BGR2GRAY)
     for note in notes:
-        x_pos = note[0]
-        y_pos = note[1]
-        det_note = cat_img[y_pos:y_pos+10, x_pos:x_pos+10]
+        x_pos = note.x
+        y_pos = note.y
+        det_note = cat_img[y_pos:note.y + note.h, x_pos:note.x + note.w]
         cv2.imshow("Detected note", det_note)
         # cv2.waitKey(0)
         gray_det = cv.cvtColor(det_note, cv.COLOR_BGR2GRAY)
@@ -161,7 +210,6 @@ def identify_orb(notes):
         # Show the final image
         cv2.imshow("Matches of half note", final_img)
         cv2.waitKey(0)
-
 
 def main():
     music = cv.imread(IMAGE_NAME)
@@ -189,22 +237,20 @@ def main():
     out = cv.bitwise_not(out)
     out = cv.blur(out, (2,3))
     out_display = cv.cvtColor(out, cv.COLOR_GRAY2BGR)   # Copy the image so it isn't affected by dilation/erosion
-    cv2.imwrite("cat_no_lines.png", out_display)
+
     # Get rid of small noise
     kernel = np.ones((int(out.shape[0] / 200), int(out.shape[0] / 200)))
     out = cv.dilate(out, kernel)
     out = cv.erode(out, kernel)
 
-    # out_display = cv.cvtColor(out, cv.COLOR_GRAY2BGR)  # Copy the image so it isn't affected by dilation/erosion
-    # cv.imshow("testing", out_display)
-    # cv.waitKey(0)
-
     # Get an image with only horizontal and vertical bars
     bars = horz + vert
+    # horz2 = cv.cvtColor(cv.bitwise_not(horz), cv.COLOR_GRAY2BGR)
     num_labels, labels, stats, centroid = cv.connectedComponentsWithStats(cv.bitwise_not(out))
     num_labels_bar, labels_bar, stats_bar, centroid_bar = cv.connectedComponentsWithStats(bars)  # Find the horizontal bar locations
     out = cv.cvtColor(out, cv.COLOR_GRAY2BGR)
     bars = cv.cvtColor(cv.bitwise_not(bars), cv.COLOR_GRAY2BGR)
+    k = 0
     for i in range(num_labels_bar):
         x = stats_bar[i, cv.CC_STAT_LEFT]
         y = stats_bar[i, cv.CC_STAT_TOP]
@@ -231,25 +277,40 @@ def main():
                         # if h_note/w_note >= 2 and h_note/w_note < 5:
                         # Filter connected components based on height and width ratio
                         if h_note / w_note >= 0.5 and h_note / w_note < 5:
-                            # print(h_note/w_note)
-                            cv.imshow('Individual Notes', out[y_note:y_note + h_note, x_note:x_note + w_note])
+                            if x_note + w_note > x + w * 0.05:
+                                if k == 0 and x_note + w_note < x + w * 0.1:
+                                    cv.rectangle(out_display, (x, y), (int(x + w * 0.1), y + h), (0, 255, 0), 1)
+                                    k = 1
+                                else:
+                                    # print(h_note/w_note)
+                                    cv.imshow('Individual Notes', out[y_note:y_note + h_note, x_note:x_note + w_note])
 
-                            cv.rectangle(out_display, (x_note, y_note), (x_note + w_note, y_note + h_note), (0, 0, 255), 1)
+                                    # cv.rectangle(out_display, (x_note, y_note), (x_note + w_note, y_note + h_note), (0, 0, 255), 1)
 
-                            for staff in staff_positions:
-                                if staff[0] > y and staff[1] < y + h:
-                                    freq = get_Note_Freq(int(y_note + h_note/2), staff[0], staff[1])
-                                    cv.putText(out_display, str(int(freq)), (x_note, y_note - 10), cv.FONT_HERSHEY_PLAIN, 1,
-                                               (0, 0, 255), 1)
-                                    notes.append([x_note, y_note, freq])
-                                    #print(freq)
+                                    for staff in staff_positions:
+                                        if staff[0] > y and staff[1] < y + h:
+                                            freq = get_Note_Freq(int(y_note + h_note/2), staff[0], staff[1])
+                                            # cv.putText(out_display, str(int(freq)), (x_note, y_note - 10), cv.FONT_HERSHEY_PLAIN, 1,(0, 0, 255), 1)
+
+                                            #notes.append([x_note, y_note, freq, w_note, h_note])
+                                            notes.append(Note(x_note, y_note, w_note, h_note, freq))
+                                            # cv.rectangle(horz2, (x, staff[0]), (x + w, staff[1]),(0, 0, 255), 1)
+                                            #print(freq)
+                            else:
+                                cv.rectangle(out_display, (x, y), (int(x + w * 0.05), y + h), (255, 0, 255), 1)
                             cv.waitKey(30)
 
+
+    # cv.imwrite("median_horz.png", horz2)
+
+
+    frequencies = organize(staff_positions, notes)
+    frequencies = merge_notes(frequencies)
+    for note in frequencies:
+        cv.rectangle(out_display, (note.x, note.y), (note.x + note.w, note.y + note.h), (0, 0, 255), 1)
     cv.imshow("Threshold", out_display)
     cv.waitKey(0)
-
-    frequencies = organize(staff_positions,notes)
-    identify_orb(notes)
+    identify_orb(frequencies)
     play_song(frequencies)
     print(len(notes))
 
