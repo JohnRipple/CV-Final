@@ -123,16 +123,15 @@ def identify_orb(notes):
     # notes is ([x_note, y_note, freq])
     # takes identified frequencies and determines which ones are valid
     # func is identifying some things as notes that are not notes like the 4,4
-    detector = cv2.ORB_create(nfeatures=600,  # default = 500
+    detector = cv2.ORB_create(nfeatures=500,  # default = 500
                               nlevels=8,  # default = 8
                               firstLevel=0,  # default = 0
                               patchSize=31,  # default = 31
                               edgeThreshold=31)  # default = 31
     matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
-    # staff_img = cv2.imread("staff_note.png")
     cat_img = cv2.imread("cat_no_lines.png")
     full_note = cv2.imread("full_note.png")
-    half_note = cv2.imread("half_note_no_line.png")
+    half_note = cv2.imread("half_note.png")
     gray_full = cv.cvtColor(full_note, cv.COLOR_BGR2GRAY)
     # gray_cat = cv.cvtColor(cat_img, cv.COLOR_BGR2GRAY)
     gray_half = cv.cvtColor(half_note, cv.COLOR_BGR2GRAY)
@@ -141,27 +140,27 @@ def identify_orb(notes):
         y_pos = note[1]
         det_note = cat_img[y_pos:y_pos+10, x_pos:x_pos+10]
         cv2.imshow("Detected note", det_note)
-        cv2.waitKey(0)
+        # cv2.waitKey(0)
         gray_det = cv.cvtColor(det_note, cv.COLOR_BGR2GRAY)
-
         kp_train, desc_train = detector.detectAndCompute(gray_det, mask=None)
         kp_query, desc_query = detector.detectAndCompute(gray_full, mask=None)
         matches = matcher.match(desc_query, desc_train)
-        print("matches: " + str(matches))
+        print("matches full: " + str(matches))       # no matches showing up for full note
         final_img = cv2.drawMatches(full_note, kp_query,
                                     det_note, kp_train, matches[:20], None)
         # Show the final image
         cv2.imshow("Match of full note", final_img)
-        cv2.waitKey(0)
+        # cv2.waitKey(0)
 
-    # half note
-    kp_query, desc_query = detector.detectAndCompute(gray_half, mask=None)
-    matches = matcher.match(desc_query, desc_train)
-    final_img = cv2.drawMatches(half_note, kp_query,
-                                cat_img, kp_train, matches[:20], None)
-    # Show the final image
-    cv2.imshow("Matches of half note", final_img)
-    cv2.waitKey(0)
+        # half note
+        kp_query, desc_query = detector.detectAndCompute(gray_half, mask=None)
+        matches = matcher.match(desc_query, desc_train)
+        print("matches half: " + str(matches))
+        final_img = cv2.drawMatches(half_note, kp_query,
+                                    det_note, kp_train, matches[:20], None)
+        # Show the final image
+        cv2.imshow("Matches of half note", final_img)
+        cv2.waitKey(0)
 
 
 def main():
