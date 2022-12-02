@@ -8,9 +8,8 @@ import time
 
 IMAGE_NAME = 'cat-lyrics.png'
 # IMAGE_NAME = 'god.png'
-# IMAGE_NAME =  'Test.png'
-# IMAGE_NAME = 'jingle.png'
-
+# IMAGE_NAME = 'rhody.png'
+# IMAGE_NAME = 'cabbage.png'
 #this reshapes the output image of sheetmusic
 cv2.namedWindow("Threshold", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("Threshold", 400,500)
@@ -18,7 +17,7 @@ cv2.resizeWindow("Threshold", 400,500)
 
 class Note:
     # Holds all the information about a note including
-    def __init__(self, x, y, w, h, frequency, length=1.0):
+    def __init__(self, x, y, w, h, frequency, length=0.5):
         self.x = x  # x coordinate (top left)
         self.y = y  # y coordinate  (top left)
         self.w = w  # note width
@@ -73,7 +72,7 @@ def get_Note_Freq(note_cord, top_staff, bottom_staff):
     hz_per_note = (oct_end - oct_start) / 12
     # Because the frequency of notes is dependent upon even split of 12 notes from oct_start to end, we only want the
     # ones that aren't sharped or flatted
-    note_to_interval = [0, 2, 3, 5, 7, 8, 10]
+    note_to_interval = [0, 1, 2, 4, 6, 7, 9]
     hz = hz_per_note * note_to_interval[note_pos % 7] + oct_start
 
     return hz
@@ -129,7 +128,6 @@ def organize(staff_positions, notes):
     return frequencies
 
 
-
 def play_song(frequencies):
     # Takes an in order list of frequencies and plays the song
     sample_rate = 44100
@@ -142,12 +140,13 @@ def play_song(frequencies):
     for freq in frequencies:
         #the note duration in s
         sec = 0.5
-        print(freq.frequency)
+        print(freq.frequency, freq.length)
         # Plays the frequency using a sine wave
+        show_note(freq.frequency)
         playAudio.sine_tone(
             stream,
             frequency=int(freq.frequency),  # Hz, waves per second A4
-            duration=sec,  # seconds to play sound
+            duration=freq.length,  # seconds to play sound
             volume=0.5,  # 0..1 how loud it is
             sample_rate=sample_rate # number of samples per second
         )
@@ -156,23 +155,63 @@ def play_song(frequencies):
     stream.close()
     p.terminate()
 
-def merge_notes(notes):
+
+def merge_notes(notes, thresh):
     # Takes array of Notes class
     # Checks if there is an object right next to a note and merges them
     # Merges dots and notes and creates a dotted half note.
-
     popping_list = []
-    for i in range(len(notes) - 1):
+    kernel = np.ones((3,3), np.uint8)
+    for i in range(len(notes) ):
+        notes_img = thresh[notes[i].y: notes[i].y + notes[i].h, notes[i].x: notes[i].x + notes[i].w]
+        long_notes_img = thresh[notes[i].y - notes[i].h * 2: notes[i].y + notes[i].h, notes[i].x: notes[i].x + notes[i].w]
+        num_labels, labels, stats, centroid = cv.connectedComponentsWithStats(long_notes_img)
+        notes_img = cv.morphologyEx(notes_img, cv.MORPH_OPEN, kernel)
+        notes_img = cv.bitwise_not(notes_img)
+
+        white_pixels = np.sum(notes_img == 255)
+        black_pixels = np.sum(notes_img == 0)
+        # print(white_pixels / (black_pixels + white_pixels), num_labels)
+
+        if white_pixels / (black_pixels + white_pixels) > 0.6:
+            if num_labels > 2:
+                notes[i].length = notes[i].length * 4
+            else:
+                notes[i].length = notes[i].length * 2
+
         # Check if the next possible note is within a note length of the current note and close to the y position
-        if (notes[i].x + notes[i].w) < notes[i + 1].x < (notes[i].x + 2 * notes[i].w):
-            if (notes[i].y + 0.5 * notes[i].h) > notes[i + 1].y > (notes[i].y - 0.5 * notes[i].h):
-                notes[i].w = notes[i + 1].w + notes[i+1].x - notes[i].x
-                popping_list.append(i + 1)
-                i += 1
+        if i < len(notes) - 1:
+            if (notes[i].x + notes[i].w) < notes[i + 1].x < (notes[i].x + 2 * notes[i].w):
+                if (notes[i].y + 0.5 * notes[i].h) > notes[i + 1].y > (notes[i].y - 0.5 * notes[i].h):
+                    notes[i].w = notes[i + 1].w + notes[i+1].x - notes[i].x
+                    notes[i].length = notes[i].length * 1.5
+                    popping_list.append(i + 1)
+                    i += 1
     for i in sorted(popping_list, reverse=True):
         notes.pop(i)
 
     return notes
+
+
+# displays the note to the keyboard.jpg image, so you can play along
+
+def show_note(note):
+    board = cv.imread("keyboard.jpg")
+    length = board.shape[1] / 21
+    octave = int(np.log2(note / 220))
+    note_pos = note - 220 * 2 ** octave
+    note_pos = round(note_pos / (220*2**octave / 12))
+    y = 171
+    note_to_interval = [0, 1, 2, 4, 6, 7, 9]
+    note_pos = note_to_interval.index(note_pos)
+    print(octave, note_pos)
+    if octave < -1 or octave == -1 and note_pos < 2 or octave > 2 or octave == 2 and note_pos > 1:
+        return
+
+    x = int(length * (octave * 7 + note_pos) + 208)
+    cv.circle(board, (x,y), 7, (255,255,0), -1)
+    cv.imshow("board", board)
+    cv.waitKey(1)
 
 
 def identify_orb(notes):
@@ -283,7 +322,7 @@ def main():
                     if x + w >= x_note + w_note and y + h >= y_note + h_note:
                         # Filter connected components based on height and width ratio
                         if 0.5 <= h_note / w_note < 5:
-                            if x_note + w_note > x + w * 0.05:
+                            if x_note > x + w * 0.05:
                                 if k == 0 and x_note + w_note < x + w * 0.1:
                                     cv.rectangle(out_display, (x, y), (int(x + w * 0.1), y + h), (0, 255, 0), 1)
                                     k = 1
@@ -299,12 +338,12 @@ def main():
                             cv.waitKey(30)
 
     frequencies = organize(staff_positions, notes)
-    frequencies = merge_notes(frequencies)
+    frequencies = merge_notes(frequencies, thresh)
     for note in frequencies:
         cv.rectangle(out_display, (note.x, note.y), (note.x + note.w, note.y + note.h), (0, 0, 255), 1)
     cv.imshow("Threshold", out_display)
     cv.waitKey(0)
-    identify_orb(frequencies)
+    # identify_orb(frequencies)
     play_song(frequencies)
     print(len(notes))
 
