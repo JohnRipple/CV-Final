@@ -163,17 +163,22 @@ def merge_notes(notes, thresh):
     popping_list = []
     kernel = np.ones((3,3), np.uint8)
     for i in range(len(notes) ):
+        # Gets the bulb of the note from the original thresholded image
         notes_img = thresh[notes[i].y: notes[i].y + notes[i].h, notes[i].x: notes[i].x + notes[i].w]
+
+        # Gets the bulb and stem
         long_notes_img = thresh[notes[i].y - notes[i].h * 2: notes[i].y + notes[i].h, notes[i].x: notes[i].x + notes[i].w]
-        num_labels, labels, stats, centroid = cv.connectedComponentsWithStats(long_notes_img)
-        notes_img = cv.morphologyEx(notes_img, cv.MORPH_OPEN, kernel)
+        num_labels, labels, stats, centroid = cv.connectedComponentsWithStats(long_notes_img)   # Sees if there is a stem or if its a whole note
+        notes_img = cv.morphologyEx(notes_img, cv.MORPH_OPEN, kernel)   # Filter the image to make it more white (finds half notes)
         notes_img = cv.bitwise_not(notes_img)
 
         white_pixels = np.sum(notes_img == 255)
         black_pixels = np.sum(notes_img == 0)
         # print(white_pixels / (black_pixels + white_pixels), num_labels)
 
+        # Checks for ratio of white to black pixels to find whole, half, or dotted half notes
         if white_pixels / (black_pixels + white_pixels) > 0.6:
+            # Every note with a stem had 2 connected components while whole notes had 4+
             if num_labels > 2:
                 notes[i].length = notes[i].length * 4
             else:
@@ -193,9 +198,9 @@ def merge_notes(notes, thresh):
     return notes
 
 
-# displays the note to the keyboard.jpg image, so you can play along
 
 def show_note(note):
+    # displays the note to the keyboard.jpg image, so you can play along
     board = cv.imread("keyboard.jpg")
     length = board.shape[1] / 21
     octave = int(np.log2(note / 220))
@@ -204,14 +209,15 @@ def show_note(note):
     y = 171
     note_to_interval = [0, 1, 2, 4, 6, 7, 9]
     note_pos = note_to_interval.index(note_pos)
+    # undoes all the math from get_note_frequency to get the octave and position of the note
     print(octave, note_pos)
     if octave < -1 or octave == -1 and note_pos < 2 or octave > 2 or octave == 2 and note_pos > 1:
         return
 
-    x = int(length * (octave * 7 + note_pos) + 208)
+    x = int(length * (octave * 7 + note_pos) + 208)  # calculates where the dot should be based on the image, octave, and pos
     cv.circle(board, (x,y), 7, (255,255,0), -1)
     cv.imshow("board", board)
-    cv.waitKey(1)
+    cv.waitKey(1)  # necessarry so that the image displays while running
 
 
 def identify_orb(notes):
