@@ -6,8 +6,8 @@ import playAudio
 from pysinewave import SineWave
 import time
 
-IMAGE_NAME = 'cat-lyrics.png'
-# IMAGE_NAME = 'god.png'
+# IMAGE_NAME = 'cat-lyrics.png'
+IMAGE_NAME = 'god.png'
 # IMAGE_NAME = 'rhody.png'
 # IMAGE_NAME = 'cabbage.png'
 #this reshapes the output image of sheetmusic
@@ -272,8 +272,7 @@ def main():
     # Find the horizontal Lines
     horzSize = int(thresh.shape[1] / 30)
     horzStruct = cv.getStructuringElement(cv.MORPH_RECT, (horzSize, 1))
-    horz = cv.erode(thresh, horzStruct)
-    horz = cv.dilate(horz, horzStruct)
+    horz = cv.morphologyEx(thresh, cv.MORPH_OPEN, horzStruct)
     staff_positions = find_staff_box(horz)
 
     # list to store all note coordinates
@@ -282,8 +281,7 @@ def main():
     # Find vertical lines
     vertSize = int(thresh.shape[0] / 30)
     vertStruct = cv.getStructuringElement(cv.MORPH_RECT, (1, vertSize))
-    vert = cv.erode(thresh, vertStruct)
-    vert = cv.dilate(vert, vertStruct)
+    vert = cv.morphologyEx(thresh, cv.MORPH_OPEN, vertStruct)
 
     # Remove horizontal Lines and add vertical lines
     out = thresh - horz - vert
@@ -293,12 +291,11 @@ def main():
 
     # Get rid of small noise
     kernel = np.ones((int(out.shape[0] / 200), int(out.shape[0] / 200)))
-    out = cv.dilate(out, kernel)
-    out = cv.erode(out, kernel)
+    out = cv.morphologyEx(out, cv.MORPH_CLOSE, kernel)
 
     # Get an image with only horizontal and vertical bars
     bars = horz + vert
-    num_labels, labels, stats, centroid = cv.connectedComponentsWithStats(cv.bitwise_not(out))
+    num_labels, labels, stats, centroid = cv.connectedComponentsWithStats(cv.bitwise_not(out))  # Find possible notes
     num_labels_bar, labels_bar, stats_bar, centroid_bar = cv.connectedComponentsWithStats(bars)  # Find the horizontal bar locations
     out = cv.cvtColor(out, cv.COLOR_GRAY2BGR)
     bars = cv.cvtColor(cv.bitwise_not(bars), cv.COLOR_GRAY2BGR)
