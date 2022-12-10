@@ -3,11 +3,9 @@ import cv2 as cv
 import numpy as np
 import pyaudio
 import playAudio
-from pysinewave import SineWave
-import time
 
-# IMAGE_NAME = 'cat-lyrics.png'
-IMAGE_NAME = 'god.png'
+IMAGE_NAME = 'cat-lyrics.png'
+# IMAGE_NAME = 'god.png'
 # IMAGE_NAME = 'rhody.png'
 # IMAGE_NAME = 'cabbage.png'
 #this reshapes the output image of sheetmusic
@@ -198,7 +196,6 @@ def merge_notes(notes, thresh):
     return notes
 
 
-
 def show_note(note):
     # displays the note to the keyboard.jpg image, so you can play along
     board = cv.imread("keyboard.jpg")
@@ -218,50 +215,6 @@ def show_note(note):
     cv.circle(board, (x,y), 7, (255,255,0), -1)
     cv.imshow("board", board)
     cv.waitKey(1)  # necessarry so that the image displays while running
-
-
-def identify_orb(notes):
-    # notes is ([x_note, y_note, freq])
-    # takes identified frequencies and determines which ones are valid
-    # func is identifying some things as notes that are not notes like the 4,4
-    detector = cv2.ORB_create(nfeatures=500,  # default = 500
-                              nlevels=8,  # default = 8
-                              firstLevel=0,  # default = 0
-                              patchSize=31,  # default = 31
-                              edgeThreshold=31)  # default = 31
-    matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
-    cat_img = cv2.imread("cat-lyrics.png")
-    full_note = cv2.imread("full_note.png")
-    half_note = cv2.imread("half_note.png")
-    gray_full = cv.cvtColor(full_note, cv.COLOR_BGR2GRAY)
-    # gray_cat = cv.cvtColor(cat_img, cv.COLOR_BGR2GRAY)
-    gray_half = cv.cvtColor(half_note, cv.COLOR_BGR2GRAY)
-    for note in notes:
-        x_pos = note.x
-        y_pos = note.y
-        det_note = cat_img[y_pos:note.y + note.h, x_pos:note.x + note.w]
-        cv2.imshow("Detected note", det_note)
-        # cv2.waitKey(0)
-        gray_det = cv.cvtColor(det_note, cv.COLOR_BGR2GRAY)
-        kp_train, desc_train = detector.detectAndCompute(gray_det, mask=None)
-        kp_query, desc_query = detector.detectAndCompute(gray_full, mask=None)
-        matches = matcher.match(desc_query, desc_train)
-        print("matches full: " + str(matches))       # no matches showing up for full note
-        final_img = cv2.drawMatches(full_note, kp_query,
-                                    det_note, kp_train, matches[:20], None)
-        # Show the final image
-        cv2.imshow("Match of full note", final_img)
-        # cv2.waitKey(0)
-
-        # half note
-        kp_query, desc_query = detector.detectAndCompute(gray_half, mask=None)
-        matches = matcher.match(desc_query, desc_train)
-        print("matches half: " + str(matches))
-        final_img = cv2.drawMatches(half_note, kp_query,
-                                    det_note, kp_train, matches[:20], None)
-        # Show the final image
-        cv2.imshow("Matches of half note", final_img)
-        cv2.waitKey(0)
 
 
 def main():
@@ -338,15 +291,14 @@ def main():
                                             notes.append(Note(x_note, y_note, w_note, h_note, freq))
                             else:
                                 cv.rectangle(out_display, (x, y), (int(x + w * 0.05), y + h), (255, 0, 255), 1)
-                            cv.waitKey(30)
+                            # cv.waitKey(30)
 
-    frequencies = organize(staff_positions, notes)
-    frequencies = merge_notes(frequencies, thresh)
+    frequencies = organize(staff_positions, notes)  # Organize notes left to right
+    frequencies = merge_notes(frequencies, thresh)  # Merge notes with dots to get dotted half notes
     for note in frequencies:
         cv.rectangle(out_display, (note.x, note.y), (note.x + note.w, note.y + note.h), (0, 0, 255), 1)
     cv.imshow("Threshold", out_display)
-    cv.waitKey(0)
-    # identify_orb(frequencies)
+    # cv.waitKey(0)
     play_song(frequencies)
     print(len(notes))
 
